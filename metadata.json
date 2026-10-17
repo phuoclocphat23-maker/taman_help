@@ -1,0 +1,6 @@
+{
+  "name": "Tâm An - SafeSpace | Không Gian An Toàn Cho Thanh Thiếu Niên",
+  "description": "Nền tảng hỗ trợ tâm lý và an toàn không gian mạng cho trẻ em và thanh thiếu niên với Nhật ký Cảm xúc NLP, Chatbot Đồng hành 24/7 và Trạm An toàn Mạng.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
