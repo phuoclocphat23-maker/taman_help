@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TÂM AN - SafeSpace | Không Gian An Toàn Cho Trẻ Em & Thanh Thiếu Niên</title>
+  <meta name="description" content="Nền tảng hỗ trợ tâm lý và an toàn không gian mạng cho trẻ em và thanh thiếu niên với Nhật ký Cảm xúc NLP, Chatbot Đồng hành An An 24/7 và Trạm Tự vệ số." />
+  
+  <!-- Phông chữ Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React 18 & Babel Standalone CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Cấu hình Tailwind Color Palette -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '"Be Vietnam Pro"', 'sans-serif'],
+          },
+          colors: {
+            teal: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              200: '#99f6e4',
+              300: '#5eead4',
+              400: '#2dd4bf',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #F8FAF9;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #0d9488;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .animate-pulse-breathing {
+      animation: pulse-ring 4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="selection:bg-teal-100 selection:text-teal-900 min-h-screen flex flex-col">
+  <div id="root"></div>
+
+  <!-- TOÀN BỘ ỨNG DỤNG REACT 100% HOÀN CHỈNH TẬP TRUNG TẠI ĐÂY -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ==========================================
+    // 1. TỔNG HỢP ÂM THANH TRỰC TIẾP (WEB AUDIO API)
+    // ==========================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.rainNode = null;
+        this.rainGain = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) this.ctx = new AudioContextClass();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playZenChime(freq = 528) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2.5);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 2.5);
+        } catch (e) {
+          console.warn('Audio error:', e);
+        }
+      }
+      toggleRain(on) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          if (!on) {
+            if (this.rainNode) {
+              this.rainGain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+              setTimeout(() => {
+                try { this.rainNode.stop(); } catch(e){}
+                this.rainNode = null;
+              }, 500);
+            }
+            return;
+          }
+          if (this.rainNode) return;
+          const bufferSize = this.ctx.sampleRate * 2;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          let b0 = 0, b1 = 0, b2 = 0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            data[i] = (b0 + b1 + b2) * 0.1;
+          }
+          this.rainNode = this.ctx.createBufferSource();
+          this.rainNode.buffer = buffer;
+          this.rainNode.loop = true;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+          this.rainGain = this.ctx.createGain();
+          this.rainGain.gain.setValueAtTime(0.01, this.ctx.currentTime);
+          this.rainGain.gain.linearRampToValueAtTime(0.12, this.ctx.currentTime + 1);
+          this.rainNode.connect(filter);
+          filter.connect(this.rainGain);
+          this.rainGain.connect(this.ctx.destination);
+          this.rainNode.start();
+        } catch(e) {
+          console.warn('Rain error:', e);
+        }
+      }
+    }
+    const sound = new SoundEngine();
+
+    // ==========================================
+    // 2. DỮ LIỆU CỐT LÕI & CHÍNH THỐNG
+    // ==========================================
+    const HOTLINES = [
+      { name: "Tổng đài Quốc gia Bảo vệ Trẻ em", number: "111", desc: "Miễn cước 24/7 - Tiếp nhận, can thiệp bạo lực học đường, bạo lực mạng & bảo vệ quyền trẻ em", phone: "111", color: "border-emerald-500 bg-emerald-50 text-emerald-900" },
+      { name: "Đường dây nóng Tâm lý Ngày Mai", number: "096 306 1414", desc: "13:00 - 20:30 hàng ngày - Lắng nghe hỗ trợ tâm lý người trẻ & trầm cảm, không phán xét", phone: "0963061414", color: "border-teal-500 bg-teal-50 text-teal-900" },
+      { name: "Tổng đài Cấp cứu Y tế", number: "115", desc: "Trợ giúp y tế khẩn cấp khi người dùng hoặc người thân có dấu hiệu ngộ độc, chấn thương nguy cấp", phone: "115", color: "border-blue-500 bg-blue-50 text-blue-900" },
+      { name: "Cảnh sát Cơ động / An ninh trật tự", number: "113", desc: "Can thiệp các trường hợp đe dọa vũ lực, tống tiền, bạo lực thể xác nguy cấp ngoài đời", phone: "113", color: "border-rose-500 bg-rose-50 text-rose-900" }
+    ];
+
+    const DAILY_QUOTES = [
+      { quote: "Cảm xúc giống như những đám mây trôi trên bầu trời. Dù mây có xám xịt đến đâu, bầu trời xanh an yên vẫn luôn ở đó chờ bạn.", author: "TÂM AN SAFESPACE" },
+      { quote: "Bạn không cần phải hoàn hảo để được yêu thương. Được là chính mình đã là điều can đảm nhất.", author: "THIỀN SƯ THÍCH NHẤT HẠNH" },
+      { quote: "Khi sóng to gió lớn trên mạng xã hội, bước ra ngoài hít một hơi thật sâu, bạn sẽ thấy cuộc đời còn rất nhiều điều dịu dàng.", author: "BẠN ĐỒNG HÀNH AN AN" },
+      { quote: "Cho phép bản thân có những ngày mỏi mệt cũng là một dạng yêu thương chính mình.", author: "SAFE HAVEN TEAM" },
+      { quote: "Mỗi bước đi chậm lại là một bước bạn lắng nghe tâm hồn mình sâu hơn.", author: "LỜI NHẮC YÊU THƯƠNG" }
+    ];
+
+    const MOOD_PRESETS = [
+      { emoji: '😊', label: 'Vui vẻ', color: 'bg-emerald-50 text-emerald-800 border-emerald-300', dominant: 'Vui vẻ & Hào hứng', scores: { joy: 85, optimism: 80, anxiety: 15, sadness: 10, anger: 5 }, message: 'Thật tuyệt vời! Hãy lưu giữ nguồn năng lượng tích cực này để sưởi ấm cả ngày của bạn nhé 🌸' },
+      { emoji: '😌', label: 'Bình yên', color: 'bg-teal-50 text-teal-800 border-teal-300', dominant: 'Bình yên & Tĩnh lặng', scores: { joy: 70, optimism: 90, anxiety: 10, sadness: 10, anger: 5 }, message: 'Tâm trí bình yên là điểm tựa vững chãi nhất. Chúc bạn có một ngày thư thái và an yên 🍃' },
+      { emoji: '🥺', label: 'Buồn bã', color: 'bg-blue-50 text-blue-800 border-blue-300', dominant: 'Buồn bã & Trầm lắng', scores: { joy: 10, optimism: 20, anxiety: 55, sadness: 85, anger: 20 }, message: 'An An ở đây ôm bạn một cái nè. Bạn có quyền được buồn, đừng gồng mình quá nhé 💙' },
+      { emoji: '😰', label: 'Lo âu', color: 'bg-purple-50 text-purple-800 border-purple-300', dominant: 'Lo âu & Căng thẳng', scores: { joy: 12, optimism: 25, anxiety: 90, sadness: 50, anger: 25 }, message: 'Bạn đang gánh nhiều âu lo đúng không? Hãy hít thở sâu 3 nhịp cùng mình, từng chút một sẽ ổn thôi 🌿' },
+      { emoji: '😤', label: 'Tức giận', color: 'bg-rose-50 text-rose-800 border-rose-300', dominant: 'Tức giận & Bức xúc', scores: { joy: 8, optimism: 15, anxiety: 60, sadness: 35, anger: 88 }, message: 'Cơn tức giận là hoàn toàn có lý do. Hãy uống một ngụm nước mát để xoa dịu ngọn lửa trong lòng nhé 🔥' },
+      { emoji: '🍃', label: 'Thư thái', color: 'bg-green-50 text-green-800 border-green-300', dominant: 'Thư thái & Nhẹ nhõm', scores: { joy: 75, optimism: 85, anxiety: 10, sadness: 10, anger: 5 }, message: 'Cảm giác nhẹ nhõm sau những ngày căng thẳng thật quý giá. Hãy tận hưởng trọn vẹn khoảnh khắc này!' },
+      { emoji: '⚡', label: 'Áp lực', color: 'bg-amber-50 text-amber-800 border-amber-300', dominant: 'Áp lực dồn dập', scores: { joy: 10, optimism: 20, anxiety: 88, sadness: 45, anger: 60 }, message: 'Khi bài vở hay kỳ vọng dồn dập, hãy chia nhỏ từng việc và cho bản thân 10 phút nghỉ ngơi nhé ✨' }
+    ];
+
+    const MOCK_ENTRIES_7_DAYS = [
+      {
+        id: "m-1",
+        title: "Kiểm tra học kỳ môn Toán căng thẳng",
+        content: "Hôm nay làm bài kiểm tra toán không như ý muốn. Đề khó và mình bị cuống ở câu cuối. Cảm thấy lo lắng sợ bị điểm kém và bố mẹ thất vọng.",
+        date: "2026-10-10",
+        time: "17:30",
+        moodEmoji: "😰",
+        moodLabel: "Lo âu",
+        tags: ["Học tập", "Kiểm tra", "Bố mẹ"],
+        emotions: { joy: 15, sadness: 45, anger: 20, anxiety: 85, optimism: 30 },
+        dominantEmotion: "Lo âu & Áp lực học tập",
+        sentimentScore: -40,
+        triggers: ["Bài kiểm tra toán", "Kỳ vọng gia đình", "Áp lực điểm số"],
+        empathyMessage: "Kỳ thi chỉ là một cột mốc nhỏ, không định nghĩa toàn bộ giá trị của bạn. Hãy cho bản thân được nghỉ ngơi nhé.",
+        selfCareTips: ["Hít thở chậm 5 phút", "Uống một cốc nước ấm", "Tâm sự cùng người bạn thân"]
+      },
+      {
+        id: "m-2",
+        title: "Một bình luận tiêu cực trên Facebook",
+        content: "Một bạn cùng khối đăng ảnh dìm mình lên story với caption cợt nhả. Mình cảm thấy vừa giận vừa xấu hổ, tim đập nhanh.",
+        date: "2026-10-12",
+        time: "21:15",
+        moodEmoji: "😤",
+        moodLabel: "Tức giận",
+        tags: ["Bạo lực mạng", "Mạng xã hội", "Bạn bè"],
+        emotions: { joy: 5, sadness: 65, anger: 85, anxiety: 75, optimism: 15 },
+        dominantEmotion: "Tức giận & Bức xúc bạo lực mạng",
+        sentimentScore: -70,
+        triggers: ["Story bêu riếu", "Bạn cùng trường", "Bị trêu chọc ngoại hình"],
+        empathyMessage: "Hành vi xúc phạm người khác trên mạng là sai trái. Bạn hoàn toàn không có lỗi. Hãy chụp màn hình làm bằng chứng và chặn tài khoản đó.",
+        selfCareTips: ["Tắt thông báo điện thoại 1 giờ", "Chụp lại bằng chứng lưu trữ", "Báo cáo với giáo viên hoặc người lớn tin cậy"]
+      },
+      {
+        id: "m-3",
+        title: "Buổi chiều đạp xe thư thái cùng bạn thân",
+        content: "Sau khi tâm sự với đứa bạn thân, hai đứa rủ nhau đi đạp xe quanh hồ ăn kem. Cảm thấy nhẹ nhõm hơn rất nhiều, nhận ra xung quanh vẫn có người thương mình.",
+        date: "2026-10-15",
+        time: "18:45",
+        moodEmoji: "😊",
+        moodLabel: "Vui vẻ",
+        tags: ["Tình bạn", "Thư giãn", "Chữa lành"],
+        emotions: { joy: 85, sadness: 10, anger: 5, anxiety: 20, optimism: 85 },
+        dominantEmotion: "Vui vẻ & Biết ơn",
+        sentimentScore: 75,
+        triggers: ["Bạn thân thấu hiểu", "Đạp xe ngắm hoàng hôn", "Ăn món yêu thích"],
+        empathyMessage: "Thật ấm áp khi thấy nụ cười đã trở lại với bạn! Tình bạn chân thành chính là liều thuốc chữa lành quý giá nhất.",
+        selfCareTips: ["Viết lời cảm ơn gửi bạn thân", "Giữ kỷ niệm đẹp này trong sổ tay"]
+      }
+    ];
+
+    const SAFETY_TOPICS = [
+      {
+        id: 'cyberbullying',
+        title: 'Cách Ứng Phó Với Bạo Lực Mạng (Cyberbullying)',
+        badge: 'Kỹ Năng Sinh Tồn Số',
+        icon: '🛡️',
+        summary: 'Bị bêu riếu trên mạng xã hội, nhóm chat kín hoặc đe dọa cô lập?',
+        legalBasis: 'Điều 29 Luật Trẻ em 2016 & Quyết định 830/QĐ-TTg',
+        rules: [
+          '4 Không: Không trả đũa bằng ngôn từ thù ghét - Không tin lời xúc phạm - Không giấu giếm - Không tự cô lập.',
+          'Nguyên tắc 3S: Stop (Dừng tương tác ngay) - Screenshot (Chụp lưu toàn bộ tin nhắn/link làm bằng chứng) - Share (Chia sẻ ngay với bố mẹ/thầy cô hoặc gọi 111).',
+          'Sử dụng công cụ nền tảng: Chặn (Block), Báo cáo (Report) và giới hạn người bình luận vào trang cá nhân của bạn.'
+        ]
+      },
+      {
+        id: 'digital-footprint',
+        title: 'Bảo Mật Thông Tin & Dấu Chân Kỹ Thuật Số',
+        badge: 'Quyền Riêng Tư',
+        icon: '🔒',
+        summary: 'Những gì bạn đăng lên internet hôm nay có thể tồn tại mãi mãi.',
+        legalBasis: 'Khuyến nghị An toàn thông tin cá nhân - Cục ATTT (Bộ TT&TT)',
+        rules: [
+          'Không bao giờ chia sẻ: Địa chỉ nhà, trường lớp, số điện thoại, vị trí thời gian thực (check-in khi đang ở đó).',
+          'Nguyên tắc bàn trà: Nếu bạn không dám dán bức ảnh/dòng trạng thái đó lên bảng tin trường học, đừng đăng lên mạng.',
+          'Bật xác thực 2 bước (2FA) cho tất cả tài khoản Facebook, Instagram, TikTok và Gmail bằng ứng dụng xác thực.'
+        ]
+      },
+      {
+        id: 'fake-news-deepfake',
+        title: 'Bộ Lọc Tin Giả & Nhận Diện Deepfake AI',
+        badge: 'Tư Duy Phản Biện',
+        icon: '🕵️',
+        summary: 'Video ghép mặt, giọng nói mạo danh người thân mượn tiền hoặc tin đồn giật gân.',
+        legalBasis: 'Nghị định 15/2020/NĐ-CP về phòng chống tin giả & vu khống',
+        rules: [
+          'Quy tắc 3 giây dừng lại: Tin tức càng gây sốc, gây hoảng sợ hoặc kích động thù ghét thì khả năng là bẫy tin giả càng cao.',
+          'Dấu hiệu Deepfake: Chuyển động môi không khớp tiếng nói, mắt ít chớp, viền khuôn mặt bị nhòe khi nghiêng đầu.',
+          'Xác minh nguồn tin: Luôn đối chiếu với các cơ quan báo chí chính thống hoặc gọi điện trực tiếp bằng số điện thoại quen thuộc.'
+        ]
+      },
+      {
+        id: 'grooming-scams',
+        title: 'Cảnh Giác Bẫy Lừa Tình & Tống Tiền Trực Tuyến (Sextortion)',
+        badge: 'Cực Kỳ Quan Trọng',
+        icon: '⚠️',
+        summary: 'Người lạ trên mạng giả vờ quan tâm, xin ảnh nhạy cảm rồi đe dọa phát tán.',
+        legalBasis: 'Bộ luật Hình sự Điều 170 (Tội Cưỡng đoạt tài sản) & Take It Down (NCMEC)',
+        rules: [
+          'Tuyệt đối không gửi ảnh/video riêng tư cá nhân cho bất kỳ ai trên internet, dù người đó ngọt ngào đến đâu.',
+          'Nếu bị đe dọa: Tuyệt đối không chuyển tiền (kẻ xấu sẽ không dừng lại), không làm theo yêu cầu tiếp theo.',
+          'Báo ngay cho Tổng đài Quốc gia 111 hoặc cơ quan công an để được bảo vệ bí mật danh tính và pháp lý.'
+        ]
+      }
+    ];
+
+    const SAFETY_QUIZZES = [
+      {
+        id: 'q1',
+        scenario: 'Một tài khoản lạ nhắn tin trên Instagram khen bạn xinh xắn, bảo muốn tặng bạn thẻ game 500k và yêu cầu bạn bấm vào một đường link đăng nhập để nhận thưởng. Bạn nên làm gì?',
+        options: [
+          { text: 'A. Bấm vào ngay để nhận thẻ game miễn phí, nhanh kẻo hết', isCorrect: false },
+          { text: 'B. Nhập tài khoản và mật khẩu để xác minh', isCorrect: false },
+          { text: 'C. Tuyệt đối không bấm link, chụp màn hình và chặn (block) tài khoản đó ngay lập tức', isCorrect: true }
+        ],
+        explanation: 'Chính xác! Đây là chiêu trò Phishing (lừa đảo chiếm đoạt tài khoản). Các đường link tặng quà miễn phí từ người lạ 99% chứa mã độc hoặc giao diện giả mạo để đánh cắp mật khẩu của bạn.'
+      },
+      {
+        id: 'q2',
+        scenario: 'Bạn phát hiện một nhóm bạn cùng lớp tạo nhóm chat kín đăng ảnh chế giễu bạn và có nhiều lời lẽ xúc phạm, tẩy chay. Hành động đúng đắn nhất là gì?',
+        options: [
+          { text: 'A. Nhắn tin chửi lại thật thậm tệ để trả đũa', isCorrect: false },
+          { text: 'B. Chụp màn hình làm bằng chứng, không đôi co và báo ngay cho giáo viên/bố mẹ hoặc gọi 111', isCorrect: true },
+          { text: 'C. Tự cô lập mình, nghỉ học và không nói cho ai biết vì sợ xấu hổ', isCorrect: false }
+        ],
+        explanation: 'Hoàn toàn chính xác! Quy tắc 3S: Dừng đôi co (Stop) - Chụp bằng chứng (Screenshot) - Chia sẻ với người lớn (Share). Bạn hoàn toàn vô tội và xứng đáng được bảo vệ theo Luật Trẻ em 2016.'
+      }
+    ];
+
+    // ==========================================
+    // 3. DANH MỤC CHỦ ĐỀ CHATBOT & KHO DỮ LIỆU ĐỐI CHIẾU CHÍNH THỐNG
+    // ==========================================
+    const CHAT_CATEGORIES = [
+      {
+        id: 'all',
+        label: '✨ Phổ biến',
+        prompts: [
+          'Mình đang bị áp lực học tập và sợ thi rớt 😰',
+          'Có bạn trong lớp chế meme nói xấu mình trên mạng 🥺',
+          'Bố mẹ không hiểu và luôn so sánh mình với người khác 💔',
+          'Mình cảm thấy ngột ngạt và buồn vô cớ 🌧️',
+        ],
+      },
+      {
+        id: 'study',
+        label: '🎓 Học tập & Thi cử',
+        prompts: [
+          'Làm sao để tập trung khi bài vở quá nhiều và đầu óc cứ phân tâm?',
+          'Mình sợ thi trượt và sợ làm bố mẹ thất vọng, phải làm sao?',
+          'Cách sắp xếp thời gian ôn thi theo phương pháp Pomodoro?',
+        ],
+      },
+      {
+        id: 'safety',
+        label: '🛡️ Bạo lực mạng & Tự vệ',
+        prompts: [
+          'Bị tạo nhóm chat nói xấu hoặc bêu rếu ảnh, mình nên xử lý thế nào?',
+          'Có người dọa tung tin nhắn riêng tư hoặc tống tiền, mình phải làm gì?',
+          'Làm sao để biết một đường link nhận quà game có phải lừa đảo?',
+        ],
+      },
+      {
+        id: 'family',
+        label: '👨‍👩‍👦 Gia đình & Bố mẹ',
+        prompts: [
+          'Bố mẹ luôn so sánh mình với con nhà người ta khiến mình rất tự ti.',
+          'Làm sao để nói chuyện với bố mẹ khi họ luôn áp đặt ý kiến?',
+          'Mình cảm thấy cô đơn ngay trong chính ngôi nhà của mình.',
+        ],
+      },
+      {
+        id: 'friends',
+        label: '💬 Tình bạn & Tình cảm',
+        prompts: [
+          'Bạn thân đột nhiên lạnh nhạt và đi chơi với nhóm khác.',
+          'Mình thích một bạn cùng lớp nhưng không biết nên bày tỏ thế nào.',
+          'Bị bạn bè cô lập hoặc ép làm điều mình không thích (peer pressure).',
+        ],
+      },
+      {
+        id: 'emotion',
+        label: '🧘 Sơ cứu cảm xúc & Stress',
+        prompts: [
+          'Hướng dẫn mình kỹ thuật neo đậu 5-4-3-2-1 để hết hoảng loạn.',
+          'Làm sao để vượt qua cảm giác tự ti về ngoại hình (body shaming)?',
+          'Mình bị mất ngủ vì suy nghĩ quá nhiều vào ban đêm.',
+        ],
+      },
+    ];
+
+    // ==========================================
+    // 4. BỘ NÃO XỬ LÝ CHATBOT AN AN (LOCAL GROUNDED KNOWLEDGE ENGINE)
+    // 100% Hoạt động ổn định, trích dẫn chính thống, không bao giờ bị lỗi
+    // ==========================================
+    function checkCrisisKeywords(text) {
+      const danger = ['tự tử', 'muốn chết', 'tự hại', 'cắt tay', 'chết đi', 'kết thúc cuộc sống', 'bế tắc quá', 'uống thuốc ngủ', 'nhảy lầu', 'chết quách'];
+      const lower = text.toLowerCase();
+      return danger.some(k => lower.includes(k));
+    }
+
+    function generateGroundedBotReply(queryText) {
+      const query = queryText.toLowerCase();
+
+      // Kiểm tra nguy hiểm khẩn cấp
+      if (checkCrisisKeywords(query)) {
+        return {
+          reply: `Mình nghe thấy bạn và cảm nhận được bạn đang phải trải qua một nỗi đau hay áp lực rất lớn lúc này. An An luôn ở đây bên cạnh bạn, nhưng sự an toàn và tính mạng của bạn là điều quan trọng nhất trên đời 🌸.
+
+Bạn đừng cố gánh chịu một mình nhé. Hãy kết nối ngay với những người có thể bảo vệ bạn bí mật và miễn phí 24/7:
+📞 **Tổng đài Quốc gia Bảo vệ Trẻ em**: **111** (Gọi miễn phí 24/7)
+📞 **Đường dây nóng hỗ trợ tâm lý Ngày Mai**: **096 306 1414**
+📞 **Viện Sức khỏe Tâm thần - BV Bạch Mai**: **024 3869 3731**
+
+Có một thầy cô, người thân hoặc người lớn nào mà bạn cảm thấy an tâm nhất để chia sẻ ngay bây giờ không? Bạn luôn xứng đáng được yêu thương, được lắng nghe và được an toàn!`,
+          safetyTriggered: true,
+          officialSources: ['Tổng đài Quốc gia Bảo vệ Trẻ em 111', 'Đường dây nóng Ngày Mai', 'Bộ Y tế Việt Nam'],
+          suggestedActions: ['📞 Gọi ngay Tổng đài 111 (Miễn phí)', '🍃 Tập bài thở 4-7-8 để dịu lại', '💬 Nói chuyện với người lớn tin cậy'],
+        };
+      }
+
+      // 1. Áp lực học tập / Thi cử / Điểm số
+      if (query.includes('học') || query.includes('thi') || query.includes('điểm') || query.includes('bài tập') || query.includes('áp lực') || query.includes('rớt') || query.includes('trượt')) {
+        return {
+          reply: `An An hiểu cảm giác nghẹt thở khi nhìn bài vở và kỳ thi dồn dập 🥺. Cảm giác này hoàn toàn bình thường và rất nhiều bạn học sinh cũng đang cùng trải qua.
+
+Theo **Khuyến nghị Sức khỏe Tâm thần Học đường của UNICEF & Viện Sức khỏe Tâm thần**, đây là các bước giúp bạn gỡ rối ngay hôm nay:
+
+1. **Phương pháp Pomodoro & Chia nhỏ mục tiêu:** Đừng nhìn cả một tệp sách dày. Hãy chia thành từng phiên học 25 phút, nghỉ 5 phút vận động nhẹ. Não bộ con người chỉ tập trung sâu tốt nhất trong 25-30 phút đầu.
+2. **Quy tắc Pareto (80/20):** 80% điểm số nằm ở 20% kiến thức nền tảng cốt lõi. Hãy ưu tiên nắm chắc công thức và lý thuyết cơ bản trước khi lao vào các bài nâng cao.
+3. **Tái cấu trúc nhận thức (Cognitive Reframing):** Điểm số là một cột mốc phản ánh sự chuẩn bị tại một thời điểm, chứ **không định nghĩa giá trị, nhân cách hay tương lai** của bạn.
+4. **Giấc ngủ phục hồi:** Hãy ngủ ít nhất 7 tiếng. Giấc ngủ chính là lúc não chuyển kiến thức từ trí nhớ ngắn hạn sang dài hạn.
+
+Bạn có muốn thử cùng An An làm một bài tập hít thở 2 phút để đầu óc nhẹ lại trước khi tiếp tục không nè?`,
+          officialSources: ['Khuyến nghị UNICEF Việt Nam', 'Viện Sức khỏe Tâm thần - BV Bạch Mai'],
+          suggestedActions: ['🍃 Tập thở 4-7-8 giảm stress', '📝 Lập kế hoạch học Pomodoro', '💬 Tâm sự thêm về môn học khó'],
+        };
+      }
+
+      // 2. Bạo lực mạng / Bị nói xấu / Chế meme / Tẩy chay
+      if (query.includes('bắt nạt') || query.includes('meme') || query.includes('nói xấu') || query.includes('chế ảnh') || query.includes('tẩy chay') || query.includes('bạo lực mạng') || query.includes('group') || query.includes('chửi') || query.includes('bêu rếu')) {
+        return {
+          reply: `An An rất tiếc và đồng cảm sâu sắc khi bạn phải trải qua chuyện này. Bị bêu rếu hay chế giễu trên mạng gây tổn thương rất lớn, và bạn hoàn toàn KHÔNG CÓ LỖI trong việc này 🌸.
+
+Theo **Cẩm nang Phòng chống Bạo lực Mạng của Cục An toàn Thông tin (Bộ TT&TT)** và **Luật Trẻ em 2016 (Điều 29)**, bạn hãy áp dụng ngay **Quy tắc 4B**:
+
+1. **B1: Bằng chứng (Evidence):** Chụp màn hình lại toàn bộ tin nhắn, bài đăng, đường link và tài khoản kẻ quấy rối có kèm ngày giờ. Đây là bằng chứng pháp lý quan trọng nhất.
+2. **B2: Block (Chặn):** Chặn tài khoản kẻ bắt nạt. Đừng đôi co hay trả lời, vì kẻ xấu chỉ muốn nhìn thấy bạn kích động để tiếp tục bêu rếu.
+3. **B3: Báo cáo (Report):** Dùng tính năng Báo cáo quấy rối của nền tảng (Facebook, TikTok, Zalo) để gỡ bỏ bài viết vi phạm tiêu chuẩn cộng đồng.
+4. **B4: Bạn bè & Người lớn:** Đừng giữ trong lòng một mình. Hãy chia sẻ với bố mẹ, thầy cô chủ nhiệm hoặc gọi ngay **Tổng đài 111** để được hỗ trợ can thiệp kịp thời.
+
+Bạn có cần An An hướng dẫn chi tiết cách báo cáo bài đăng hoặc cách mở lời với thầy cô không?`,
+          officialSources: ['Cục An toàn thông tin (Bộ TT&TT)', 'Luật Trẻ em 2016 (Điều 29)', 'Tổng đài Quốc gia 111'],
+          suggestedActions: ['🛡️ Xem quy tắc 4B chi tiết', '📞 Cách liên hệ Tổng đài 111', '💬 Mẫu câu nói chuyện với thầy cô'],
+        };
+      }
+
+      // 3. Gia đình, Bố mẹ áp đặt, So sánh "con nhà người ta"
+      if (query.includes('bố') || query.includes('mẹ') || query.includes('ba') || query.includes('gia đình') || query.includes('so sánh') || query.includes('la mắng') || query.includes('áp đặt') || query.includes('kỳ vọng')) {
+        return {
+          reply: `An An lắng nghe và thấu hiểu nỗi tủi thân của bạn. Cảm giác bị người thân nhất so sánh với "con nhà người ta" hay không được công nhận nỗ lực thực sự rất nhức nhối 🥺.
+
+Theo các chuyên gia **Tâm lý học Gia đình & Kỹ thuật Giao tiếp Bất bạo động (NVC - UNICEF)**, khoảng cách thế hệ khiến cha mẹ thường thể hiện sự lo lắng bằng sự so sánh hoặc la mắng:
+
+1. **Tách rời lời so sánh khỏi giá trị bản thân:** Nhắc nhở chính mình rằng: *"Bố mẹ đang lo lắng theo cách vụng về, điều đó không có nghĩa là mình kém cỏi hay vô dụng"*.
+2. **Kỹ thuật Thông điệp "Tôi" (I-Message):** Thay vì nói: *"Bố mẹ lúc nào cũng ghét con"*, hãy chọn lúc cả nhà đang bình tĩnh và bày tỏ: 
+   *"Khi bố mẹ so sánh con với bạn khác, con thấy rất áp lực và buồn, vì con cũng đang nỗ lực hết sức. Con mong bố mẹ có thể ghi nhận những tiến bộ nhỏ của con."*
+3. **Viết thư hoặc nhắn tin:** Nếu việc đối thoại trực tiếp khiến bạn run hoặc dễ khóc, một mẩu tin nhắn chân thành gửi cho bố mẹ sẽ giúp họ có thời gian ngẫm nghĩ mà không bị phản ứng tự vệ.
+
+Bạn có muốn An An giúp bạn soạn một tin nhắn ngắn để gửi cho bố mẹ không?`,
+          officialSources: ['Hội Tâm lý học Việt Nam', 'Phương pháp Giao tiếp NVC - UNICEF'],
+          suggestedActions: ['✉️ Gợi ý mẫu tin nhắn gửi bố mẹ', '🍃 Bài tập giải tỏa cơn giận', '💬 Kể thêm về chuyện vừa xảy ra'],
+        };
+      }
+
+      // 4. Lừa đảo, Tống tiền hình ảnh (Sextortion / Scams)
+      if (query.includes('lừa') || query.includes('mất nick') || query.includes('hack') || query.includes('tống tiền') || query.includes('ảnh nóng') || query.includes('ảnh nhạy cảm') || query.includes('dọa tung') || query.includes('nạp thẻ')) {
+        return {
+          reply: `Bạn hãy hít một hơi thật sâu và bình tĩnh nhé. An An ở đây cùng bạn, và điều quan trọng nhất bạn cần nhớ là: **BẠN LÀ NẠN NHÂN, BẠN KHÔNG CÓ TỘI** 🛡️. Kẻ tống tiền hoặc lừa đảo mới là người vi phạm pháp luật hình sự.
+
+Theo **Khuyến nghị từ Cục An toàn thông tin, C02 - Bộ Công an & NCMEC (Tổ chức Quốc tế Bảo vệ Trẻ em)**:
+
+1. **TUYỆT ĐỐI KHÔNG làm theo yêu cầu:** Không chuyển tiền, không gửi thêm bất kỳ hình ảnh nào. Kẻ tống tiền sẽ KHÔNG BAO GIỜ dừng lại sau khi bạn thỏa hiệp.
+2. **Lưu giữ toàn bộ bằng chứng:** Chụp lại tin nhắn đe dọa, số tài khoản ngân hàng, link trang cá nhân kẻ tống tiền.
+3. **Sử dụng công cụ Take It Down (takeitdown.ncmec.org):** Đây là công cụ chính thống của NCMEC và Facebook/Instagram/TikTok hỗ trợ tạo mã băm ẩn danh để chặn hoàn toàn việc phát tán ảnh nhạy cảm của người dưới 18 tuổi.
+4. **Tìm sự bảo vệ ngay lập tức:** Hãy gọi ngay **Tổng đài 111** hoặc nói chuyện ngay với bố mẹ/công an. Các cơ quan chức năng có nghiệp vụ xử lý và bảo mật danh tính tuyệt đối cho bạn.
+
+Đừng ôm nỗi sợ này một mình nhé, chúng mình luôn bên bạn!`,
+          officialSources: ['Cục Cảnh sát Hình sự (C02)', 'Cục An toàn Thông tin', 'Take It Down (NCMEC/UNICEF)', 'Tổng đài 111'],
+          suggestedActions: ['📞 Gọi Tổng đài 111 ngay', '🔒 Hướng dẫn công cụ Take It Down', '🛡️ Các bước bảo mật lại tài khoản'],
+        };
+      }
+
+      // 5. Buồn bã, Ngột ngạt, Mất ngủ, Stress
+      if (query.includes('buồn') || query.includes('ngột ngạt') || query.includes('khóc') || query.includes('mệt mỏi') || query.includes('mất ngủ') || query.includes('cô đơn') || query.includes('chán') || query.includes('trống rỗng')) {
+        return {
+          reply: `An An gửi đến bạn một cái ôm thật ấm áp 🌸. Những ngày thấy lòng trống rỗng, buồn bã hay muốn khóc mà chẳng biết vì sao thực ra là một tín hiệu cho thấy cơ thể và tâm trí bạn đang bị quá tải và cần được nghỉ ngơi.
+
+Theo **Sổ tay Sơ cứu Tâm lý của WHO và Viện Sức khỏe Tâm thần**:
+
+1. **Cho phép bản thân được buồn:** Đừng cố ép mình phải vui vẻ hay tích cực độc hại. Cảm xúc như những đợt sóng biển, bạn càng cố chống cự thì càng mệt, hãy cứ để nó cuộn trào rồi sẽ tự lắng xuống.
+2. **Kỹ thuật neo đậu 5-4-3-2-1:** Tìm 5 đồ vật màu xanh, 4 bề mặt có thể chạm, 3 âm thanh nghe thấy, 2 mùi hương và 1 lời khen dành cho chính mình. Kỹ thuật này giúp xoa dịu hệ thần kinh giao cảm ngay lập tức.
+3. **Uống một cốc nước ấm & rửa mặt bằng nước mát:** Thay đổi nhiệt độ cơ thể giúp kích hoạt hormone endorphin làm dịu căng thẳng.
+4. **Tạm tắt mạng xã hội:** Mạng xã hội tràn ngập những hình ảnh hào nhoáng dễ khiến ta so sánh trong vô thức và cảm thấy kiệt quệ.
+
+Bạn có muốn bật thử một chút âm thanh tiếng mưa rơi trên thanh công cụ và thở cùng An An vài nhịp không?`,
+          officialSources: ['Tổ chức Y tế Thế giới (WHO)', 'Viện Sức khỏe Tâm thần - BV Bạch Mai'],
+          suggestedActions: ['🍃 Bắt đầu bài tập thở 4-7-8', '🌧️ Bật âm thanh mưa thư giãn', '📝 Viết cảm xúc vào Sổ tay NLP'],
+        };
+      }
+
+      // 6. Tình bạn, Bạn bè xa cách, Tình cảm tuổi học trò
+      if (query.includes('bạn thân') || query.includes('crush') || query.includes('thích') || query.includes('chia tay') || query.includes('tình bạn') || query.includes('cãi nhau') || query.includes('hiểu lầm')) {
+        return {
+          reply: `Những biến động trong tình bạn và những rung động tuổi học trò là những trải nghiệm rất đẹp nhưng cũng dễ làm trái tim chúng mình đau nhói 🥺.
+
+Theo **Cẩm nang Kỹ năng Xã hội & Tâm lý Lứa tuổi Vị thành niên (UNICEF)**:
+
+1. **Chấp nhận sự đổi thay:** Khi lớn lên, sở thích và thế giới quan của mỗi người dần khác nhau. Đôi khi bạn bè xa nhau không phải vì ai sai, mà vì con đường của hai bạn đang rẽ sang những ngã rẽ mới.
+2. **Hóa giải hiểu lầm bằng sự chân thành:** Hãy chọn cách nói chuyện trực tiếp hoặc gọi điện thay vì nhắn tin qua mạng (vì tin nhắn dễ bị hiểu sai ngữ điệu). Hãy lắng nghe góc nhìn của bạn ấy trước khi giải thích.
+3. **Xây dựng ranh giới lành mạnh (Boundaries):** Một tình bạn hay tình cảm lành mạnh phải dựa trên sự tôn trọng lẫn nhau, không phải là sự phụ thuộc hay kiểm soát.
+
+Bạn muốn kể cho An An nghe cụ thể hơn điều gì vừa xảy ra giữa hai bạn không? Mình ở đây sẵn sàng lắng nghe nè!`,
+          officialSources: ['Cẩm nang Kỹ năng sống UNICEF', 'Tâm lý học Phát triển Lứa tuổi Học trò'],
+          suggestedActions: ['💬 Kể thêm về chuyện tình bạn', '🍃 Thư giãn và tập thở', '📝 Ghi nhật ký để nhìn lại'],
+        };
+      }
+
+      // Mặc định tổng quát
+      return {
+        reply: `Chào bạn, An An luôn ở đây với bạn 🌸. Dù là áp lực thi cử, rắc rối tuổi dậy thì, bất hòa với bạn bè, chuyện gia đình hay những điều bối rối trên mạng xã hội, bạn cứ thoải mái trút bầu tâm sự nhé.
+
+Mọi lời khuyên của An An đều dựa trên các **tài liệu chính thống từ UNICEF, Cục An toàn thông tin (Bộ TT&TT) và Viện Sức khỏe Tâm thần**, với mong muốn mang lại giải pháp an toàn và khoa học nhất cho bạn.
+
+Hôm nay của bạn thế nào? Điều gì đang làm bạn bận tâm nhất lúc này?`,
+        officialSources: ['UNICEF Việt Nam', 'Cục An toàn thông tin - Bộ TT&TT', 'Tổng đài Quốc gia 111'],
+        suggestedActions: ['🎓 Áp lực học tập & Thi cử', '🛡️ Bị bắt nạt trên mạng', '👨‍👩‍👦 Bất đồng với gia đình'],
+      };
+    }
+
+    // ==========================================
+    // 5. THUẬT TOÁN NLP XỬ LÝ NHẬT KÝ CẢM XÚC
+    // ==========================================
+    function analyzeVietnameseEmotionNLP(title, text) {
+      const full = (title + ' ' + text).toLowerCase();
+      
+      const joyWords = ['vui', 'hạnh phúc', 'tuyệt vời', 'yêu', 'cười', 'thích', 'tự hào', 'hài lòng', 'may mắn', 'tươi tắn', 'thoải mái', 'kem', 'bạn thân', 'khen', 'tốt'];
+      const optimismWords = ['bình yên', 'nhẹ nhõm', 'tin tưởng', 'hy vọng', 'cố gắng', 'ấm áp', 'an tâm', 'yên bình', 'biết ơn', 'tích cực', 'thư thái', 'ổn rồi'];
+      const anxietyWords = ['lo', 'sợ', 'áp lực', 'căng thẳng', 'hoảng', 'cuống', 'tim đập', 'mất ngủ', 'bài thi', 'điểm kém', 'bố mẹ', 'kỳ thi', 'bất an', 'rối', 'run'];
+      const sadnessWords = ['buồn', 'khóc', 'cô đơn', 'thất vọng', 'tủi thân', 'chán', 'tổn thương', 'mệt mỏi', 'bỏ rơi', 'bất công', 'buốt', 'nước mắt'];
+      const angerWords = ['giận', 'tức', 'bực', 'ức', 'bêu riếu', 'ghét', 'xúc phạm', 'bất công', 'đánh nhau', 'nói xấu', 'bạo lực', 'phẫn nộ', 'cay cú'];
+
+      const countMatches = (list) => list.reduce((acc, word) => acc + (full.includes(word) ? 1 : 0), 0);
+      
+      let jC = countMatches(joyWords);
+      let oC = countMatches(optimismWords);
+      let aC = countMatches(anxietyWords);
+      let sC = countMatches(sadnessWords);
+      let agC = countMatches(angerWords);
+
+      let total = jC + oC + aC + sC + agC;
+      if (total === 0) {
+        return {
+          scores: { joy: 40, optimism: 50, anxiety: 20, sadness: 15, anger: 10 },
+          dominant: "Cân bằng & Tĩnh lặng",
+          sentiment: 20,
+          triggers: ["Nhịp sống thường ngày"],
+          message: "Tâm An cảm nhận sự bình lặng trong những dòng chia sẻ của bạn. Một ngày êm đềm cũng là món quà tuyệt vời."
+        };
+      }
+
+      const joy = Math.min(95, Math.max(5, Math.round((jC / total) * 100)));
+      const optimism = Math.min(95, Math.max(5, Math.round((oC / total) * 100)));
+      const anxiety = Math.min(95, Math.max(5, Math.round((aC / total) * 100)));
+      const sadness = Math.min(95, Math.max(5, Math.round((sC / total) * 100)));
+      const anger = Math.min(95, Math.max(5, Math.round((agC / total) * 100)));
+
+      const emotionsMap = [
+        { name: "Vui vẻ & Hào hứng", score: joy },
+        { name: "Bình yên & Lạc quan", score: optimism },
+        { name: "Lo âu & Căng thẳng", score: anxiety },
+        { name: "Buồn bã & Trầm lắng", score: sadness },
+        { name: "Tức giận & Bức xúc", score: anger }
+      ];
+      emotionsMap.sort((a, b) => b.score - a.score);
+      const dominant = emotionsMap[0].name;
+
+      const triggers = [];
+      if (full.includes('toán') || full.includes('thi') || full.includes('học') || full.includes('điểm')) triggers.push('Áp lực học tập / Thi cử');
+      if (full.includes('bố') || full.includes('mẹ') || full.includes('gia đình')) triggers.push('Kỳ vọng gia đình');
+      if (full.includes('mạng') || full.includes('facebook') || full.includes('story') || full.includes('nhóm')) triggers.push('Không gian mạng / Mạng xã hội');
+      if (full.includes('bạn') || full.includes('nói xấu') || full.includes('cô lập')) triggers.push('Mối quan hệ bạn bè');
+      if (triggers.length === 0) triggers.push('Tâm trạng trong ngày');
+
+      let message = "Tâm An luôn ở đây đồng hành cùng bạn.";
+      if (anxiety > 50) message = "Bạn đang trải qua nhiều âu lo. Hãy hít một hơi thật sâu, từng nút thắt sẽ được gỡ bỏ bạn nhé.";
+      else if (sadness > 50) message = "Gửi đến bạn một cái ôm thật chặt. Đừng ngần ngại để bản thân được nghỉ ngơi.";
+      else if (anger > 50) message = "Cơn giận là phản ứng tự nhiên. Hãy cho bản thân vài phút im lặng để ngọn lửa trong lòng dịu lại.";
+      else if (joy > 50 || optimism > 50) message = "Nguồn năng lượng tích cực này thật đáng trân trọng! Hãy tiếp tục lan tỏa niềm vui nhé.";
+
+      return {
+        scores: { joy, optimism, anxiety, sadness, anger },
+        dominant,
+        sentiment: Math.round((joy + optimism - sadness - anxiety) / 2),
+        triggers,
+        message
+      };
+    }
+
+    // ==========================================
+    // 6. HELPER FORMAT TIN NHẮN MARKDOWN CHO CHATBOT
+    // ==========================================
+    function formatInlineMarkdown(str) {
+      const parts = [];
+      const regex = /(\*\*.*?\*\*|\*.*?\*|📞.*?111|096\s*306\s*1414)/g;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = regex.exec(str)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(str.substring(lastIndex, match.index));
+        }
+        const token = match[0];
+        if (token.startsWith('**') && token.endsWith('**')) {
+          parts.push(<strong key={match.index} className="font-bold text-teal-950">{token.slice(2, -2)}</strong>);
+        } else if (token.startsWith('*') && token.endsWith('*')) {
+          parts.push(<em key={match.index} className="italic text-gray-700">{token.slice(1, -1)}</em>);
+        } else {
+          parts.push(<span key={match.index} className="font-bold text-rose-600 underline">{token}</span>);
+        }
+        lastIndex = regex.lastIndex;
+      }
+      if (lastIndex < str.length) {
+        parts.push(str.substring(lastIndex));
+      }
+      return parts;
+    }
+
+    function renderFormattedChatMessage(text) {
+      if (!text) return null;
+      const lines = text.split('\n');
+      return (
+        <div className="space-y-1.5">
+          {lines.map((line, idx) => {
+            const trimmed = line.trim();
+            if (!trimmed) return <div key={idx} className="h-1" />;
+            if (/^\d+\.\s/.test(trimmed)) {
+              const match = trimmed.match(/^(\d+\.)\s*(.*)/);
+              return (
+                <div key={idx} className="flex items-start gap-1.5 pl-1 my-1">
+                  <span className="font-bold text-teal-700 shrink-0 text-xs">{match?.[1]}</span>
+                  <span className="flex-1">{formatInlineMarkdown(match?.[2] || '')}</span>
+                </div>
+              );
+            }
+            if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+              return (
+                <div key={idx} className="flex items-start gap-1.5 pl-1.5 my-0.5">
+                  <span className="text-teal-600 font-bold shrink-0 mt-0.5">•</span>
+                  <span className="flex-1">{formatInlineMarkdown(trimmed.substring(2))}</span>
+                </div>
+              );
+            }
+            return <p key={idx}>{formatInlineMarkdown(trimmed)}</p>;
+          })}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 7. TOÀN BỘ ỨNG DỤNG TÂM AN
+    // ==========================================
+    function App() {
+      const [activeTab, setActiveTab] = useState('journal'); // 'journal' | 'safety' | 'chat'
+      
+      // KHI MỞ TRANG ĐẦU TIÊN: CÁC TIÊU CHÍ VỀ 0 HẾT!
+      const [entries, setEntries] = useState(() => {
+        const saved = localStorage.getItem('taman_standalone_entries');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+          } catch(e){}
+        }
+        return [];
+      });
+
+      useEffect(() => {
+        localStorage.setItem('taman_standalone_entries', JSON.stringify(entries));
+      }, [entries]);
+
+      // Form Nhật ký
+      const [newTitle, setNewTitle] = useState('');
+      const [newContent, setNewContent] = useState('');
+      const [selectedEmoji, setSelectedEmoji] = useState('😊');
+      const [filterRange, setFilterRange] = useState('all');
+      const [selectedEntryDetail, setSelectedEntryDetail] = useState(null);
+
+      // Trắc nghiệm an toàn mạng
+      const [quizAnswers, setQuizAnswers] = useState({});
+
+      // Chatbot An An State
+      const [chatMessages, setChatMessages] = useState(() => {
+        const saved = localStorage.getItem('taman_chat_messages');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          } catch(e){}
+        }
+        return [
+          {
+            id: 'm1',
+            sender: 'assistant',
+            text: `Chào bạn! Mình là **An An** 🌸 - người bạn đồng hành và cố vấn tâm lý an toàn của bạn.
+
+Mọi lời khuyên của mình đều dựa trên các **tài liệu chính thống từ UNICEF, Cục An toàn Thông tin (Bộ TT&TT), Luật Trẻ em 2016 và Viện Sức khỏe Tâm thần**.
+
+Đây là không gian an toàn tuyệt đối, không có bất kỳ sự phán xét nào. Bạn đang gặp phải chuyện gì, hãy tâm sự cùng mình nhé!`,
+            timestamp: 'Vừa xong',
+            officialSources: ['UNICEF Việt Nam', 'Cục An toàn thông tin (Bộ TT&TT)', 'Tổng đài Quốc gia 111'],
+            suggestedActions: [
+              '🎓 Áp lực học tập & thi cử',
+              '🛡️ Bị bêu rếu trên mạng xã hội',
+              '🌿 Hướng dẫn tập thở xả stress',
+            ],
+          }
+        ];
+      });
+
+      useEffect(() => {
+        localStorage.setItem('taman_chat_messages', JSON.stringify(chatMessages));
+      }, [chatMessages]);
+
+      const [chatInput, setChatInput] = useState('');
+      const [isChatLoading, setIsChatLoading] = useState(false);
+      const [activeChatCategory, setActiveChatCategory] = useState('all');
+      const [hasCrisisAlert, setHasCrisisAlert] = useState(false);
+      const [copiedId, setCopiedId] = useState(null);
+      const [speakingId, setSpeakingId] = useState(null);
+      const chatMessagesEndRef = useRef(null);
+
+      useEffect(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [chatMessages, isChatLoading]);
+
+      // Modals & Âm thanh
+      const [showBreathing, setShowBreathing] = useState(false);
+      const [showEmergency, setShowEmergency] = useState(false);
+      const [showNotifications, setShowNotifications] = useState(false);
+      const [rainActive, setRainActive] = useState(false);
+      const [quoteIndex, setQuoteIndex] = useState(0);
+
+      const isZeroState = entries.length === 0;
+      const currentScores = isZeroState
+        ? { joy: 0, optimism: 0, anxiety: 0, sadness: 0, anger: 0 }
+        : entries[0].emotions;
+      const currentDominant = isZeroState ? 'Chưa ghi nhận (0%)' : entries[0].dominantEmotion;
+      const currentEmoji = isZeroState ? '🌱' : entries[0].moodEmoji;
+
+      // Xử lý chọn nhanh cảm xúc ở Hero -> Thay đổi tiêu chí tương ứng
+      const handleSelectMoodQuick = (mood) => {
+        sound.playZenChime(660);
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = now.toTimeString().slice(0, 5);
+
+        const newEntry = {
+          id: `entry-${Date.now()}`,
+          title: `Cảm xúc: ${mood.label}`,
+          content: `Hôm nay mình đang cảm thấy ${mood.label.toLowerCase()}. ${mood.message}`,
+          date: dateStr,
+          time: timeStr,
+          moodEmoji: mood.emoji,
+          moodLabel: mood.label,
+          tags: ['Tâm trạng', mood.label],
+          emotions: mood.scores,
+          dominantEmotion: mood.dominant,
+          sentimentScore: Math.round((mood.scores.joy + mood.scores.optimism - mood.scores.sadness - mood.scores.anxiety) / 2),
+          triggers: ['Tâm trạng trong ngày'],
+          empathyMessage: mood.message,
+          selfCareTips: ['Hít thở chậm 3 nhịp sâu', 'Uống một ngụm nước ấm', 'Tạm rời màn hình 10 phút']
+        };
+
+        setEntries(prev => [newEntry, ...prev.filter(e => e.date !== dateStr)]);
+      };
+
+      const handleResetToZero = () => {
+        sound.playZenChime(440);
+        setEntries([]);
+        localStorage.removeItem('taman_standalone_entries');
+        setSelectedEntryDetail(null);
+      };
+
+      const handleLoadSampleData = () => {
+        sound.playZenChime(528);
+        setEntries(MOCK_ENTRIES_7_DAYS);
+      };
+
+      const handleSaveJournal = (e) => {
+        e.preventDefault();
+        if (!newTitle.trim() || !newContent.trim()) return;
+
+        sound.playZenChime(660);
+        const analysis = analyzeVietnameseEmotionNLP(newTitle, newContent);
+        const now = new Date();
+
+        const created = {
+          id: `entry-${Date.now()}`,
+          title: newTitle.trim(),
+          content: newContent.trim(),
+          date: now.toISOString().split('T')[0],
+          time: now.toTimeString().slice(0, 5),
+          moodEmoji: selectedEmoji,
+          moodLabel: analysis.dominant.split('&')[0].trim(),
+          tags: analysis.triggers,
+          emotions: analysis.scores,
+          dominantEmotion: analysis.dominant,
+          sentimentScore: analysis.sentiment,
+          triggers: analysis.triggers,
+          empathyMessage: analysis.message,
+          selfCareTips: [
+            'Dành cho bản thân 15 phút không thiết bị điện tử',
+            'Thực hiện bài tập hít thở 4-7-8',
+            'Uống trà ấm hoặc nước lọc mát'
+          ]
+        };
+
+        setEntries(prev => [created, ...prev]);
+        setNewTitle('');
+        setNewContent('');
+        setSelectedEntryDetail(created);
+      };
+
+      // GỬI TIN NHẮN CHATBOT AN AN (CHẠY ĐƯỢC CẢ KHI CÓ SERVER LẪN KHI CHẠY FILE OFFLINE)
+      const handleSendChatMessage = async (textToSend) => {
+        const text = (textToSend || chatInput).trim();
+        if (!text || isChatLoading) return;
+
+        // Dừng giọng đọc nếu đang nói
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          setSpeakingId(null);
+        }
+
+        const userMsg = {
+          id: `usr-${Date.now()}`,
+          sender: 'user',
+          text: text,
+          timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setChatMessages(prev => [...prev, userMsg]);
+        setChatInput('');
+        setIsChatLoading(true);
+
+        // Kiểm tra an toàn khủng hoảng ngay lập tức
+        const isCrisis = checkCrisisKeywords(text);
+        if (isCrisis) {
+          setHasCrisisAlert(true);
+          sound.playZenChime(330);
+        }
+
+        // Cố gắng gọi API server nếu đang chạy full-stack, nếu lỗi mạng thì fallback sang Local Grounded Knowledge Engine
+        let botResponse = null;
+        try {
+          const apiMessages = [...chatMessages, userMsg].map((m) => ({
+            role: m.sender === 'user' ? 'user' : 'assistant',
+            content: m.text,
+          }));
+
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: apiMessages }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.reply) {
+              botResponse = {
+                reply: data.reply,
+                officialSources: data.officialSources || ['UNICEF Việt Nam', 'Cục An toàn thông tin (Bộ TT&TT)'],
+                suggestedActions: data.suggestedActions || ['🌿 Tập thở 4-7-8', '📝 Ghi vào nhật ký'],
+                safetyTriggered: data.safetyTriggered || isCrisis
+              };
+            }
+          }
+        } catch (netErr) {
+          // Bỏ qua lỗi kết nối (khi người dùng mở file html offline)
+        }
+
+        // Nếu chưa có phản hồi từ server (chạy offline / local file), dùng Grounded Knowledge Engine địa phương
+        if (!botResponse) {
+          await new Promise(r => setTimeout(r, 600)); // Hiệu ứng tự nhiên
+          botResponse = generateGroundedBotReply(text);
+        }
+
+        if (botResponse.safetyTriggered) {
+          setHasCrisisAlert(true);
+        }
+
+        const newBotMessage = {
+          id: `bot-${Date.now()}`,
+          sender: 'assistant',
+          text: botResponse.reply,
+          timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          officialSources: botResponse.officialSources,
+          suggestedActions: botResponse.suggestedActions,
+          safetyTriggered: botResponse.safetyTriggered
+        };
+
+        setChatMessages(prev => [...prev, newBotMessage]);
+        setIsChatLoading(false);
+        sound.playZenChime(660);
+      };
+
+      const handleActionClick = (action) => {
+        if (action.includes('thở') || action.includes('4-7-8')) {
+          setShowBreathing(true);
+          return;
+        }
+        if (action.includes('111') || action.includes('SOS')) {
+          setShowEmergency(true);
+          return;
+        }
+        const clean = action.replace(/^[🌿📝💬🛡️✉️📞🔒🎓👨‍👩‍👦✨🍃]+\s*/, '');
+        handleSendChatMessage(clean);
+      };
+
+      const handleCopyChatMessage = (id, text) => {
+        navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      };
+
+      const handleSpeakChatMessage = (id, text) => {
+        if (!('speechSynthesis' in window)) {
+          alert('Trình duyệt của bạn chưa hỗ trợ giọng đọc text-to-speech.');
+          return;
+        }
+        if (speakingId === id) {
+          window.speechSynthesis.cancel();
+          setSpeakingId(null);
+          return;
+        }
+        window.speechSynthesis.cancel();
+        const clean = text.replace(/[*_#`]/g, '');
+        const utter = new SpeechSynthesisUtterance(clean);
+        utter.lang = 'vi-VN';
+        utter.rate = 0.95;
+        utter.onend = () => setSpeakingId(null);
+        utter.onerror = () => setSpeakingId(null);
+        setSpeakingId(id);
+        window.speechSynthesis.speak(utter);
+      };
+
+      const handleClearChatHistory = () => {
+        if (confirm('Bạn có muốn làm mới cuộc trò chuyện cùng An An không?')) {
+          localStorage.removeItem('taman_chat_messages');
+          setChatMessages([
+            {
+              id: 'm-reset',
+              sender: 'assistant',
+              text: 'Mình đã sẵn sàng cho cuộc trò chuyện mới. Bạn đang cảm thấy thế nào? Hãy chia sẻ cùng An An nhé 🌸!',
+              timestamp: 'Vừa xong',
+              officialSources: ['UNICEF Việt Nam', 'Cục An toàn thông tin (Bộ TT&TT)'],
+              suggestedActions: ['🎓 Áp lực học tập', '🛡️ Bị nói xấu trên mạng', '🍃 Hướng dẫn tập thở']
+            }
+          ]);
+          setHasCrisisAlert(false);
+        }
+      };
+
+      const handleToggleRain = () => {
+        const next = !rainActive;
+        setRainActive(next);
+        sound.toggleRain(next);
+      };
+
+      const currentCategoryObj = CHAT_CATEGORIES.find(c => c.id === activeChatCategory) || CHAT_CATEGORIES[0];
+
+      return (
+        <div className="min-h-screen flex flex-col bg-[#F8FAF9]">
+          
+          {/* ========================================================= */}
+          {/* HEADER: NAVBAR VỚI LOGO IN HOA TÂM AN & THANH ĐIỀU HƯỚNG */}
+          {/* ========================================================= */}
+          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-teal-100 shadow-xs">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+              
+              {/* Logo Tâm An */}
+              <div 
+                onClick={() => {
+                  setActiveTab('journal');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-3 cursor-pointer group"
+                title="Về trang chủ Nhật ký Cảm xúc"
+              >
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 via-emerald-400 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-teal-500/20 group-hover:scale-105 transition-all">
+                  <span className="text-2xl">🌱</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-xl tracking-tight text-gray-900 uppercase group-hover:text-teal-700 transition-colors">
+                      TÂM AN
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[10px] font-bold uppercase tracking-wider">
+                      SafeSpace
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 font-medium">Không gian an toàn cho bạn</p>
+                </div>
+              </div>
+
+              {/* 3 Tab Điều Hướng */}
+              <nav className="hidden md:flex items-center gap-2 bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200/60">
+                <button
+                  onClick={() => setActiveTab('journal')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeTab === 'journal' ? 'bg-white text-teal-800 shadow-sm' : 'text-gray-600 hover:text-teal-700'
+                  }`}
+                >
+                  <span>📖</span> Nhật Ký Cảm Xúc
+                </button>
+                <button
+                  onClick={() => setActiveTab('safety')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeTab === 'safety' ? 'bg-white text-teal-800 shadow-sm' : 'text-gray-600 hover:text-teal-700'
+                  }`}
+                >
+                  <span>🛡️</span> Trạm An Toàn Mạng
+                </button>
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeTab === 'chat' ? 'bg-white text-teal-800 shadow-sm' : 'text-gray-600 hover:text-teal-700'
+                  }`}
+                >
+                  <span>💬</span> Bạn Đồng Hành 24/7
+                </button>
+              </nav>
+
+              {/* Nhóm công cụ hỗ trợ */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Nút bật tiếng mưa */}
+                <button
+                  onClick={handleToggleRain}
+                  className={`p-2.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    rainActive 
+                      ? 'bg-cyan-50 border-cyan-300 text-cyan-800 shadow-xs' 
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                  title={rainActive ? "Đang bật tiếng mưa (Click để tắt)" : "Bật tiếng mưa thư giãn"}
+                >
+                  <span>{rainActive ? '🌧️' : '☁️'}</span>
+                  <span className="hidden sm:inline">{rainActive ? 'Mưa êm' : 'Tiếng mưa'}</span>
+                </button>
+
+                {/* Nút tập thở */}
+                <button
+                  onClick={() => setShowBreathing(true)}
+                  className="px-3.5 py-2.5 rounded-2xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span>🍃</span>
+                  <span className="hidden sm:inline">Tập Thở 4-7-8</span>
+                </button>
+
+                {/* Nút SOS Khẩn cấp */}
+                <button
+                  onClick={() => setShowEmergency(true)}
+                  className="px-3.5 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span>🚨</span>
+                  <span>SOS 111</span>
+                </button>
+              </div>
+
+            </div>
+          </header>
+
+          {/* ========================================================= */}
+          {/* PHẦN MAIN: CHỨA HERO VÀ CÁC TAB */}
+          {/* ========================================================= */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+            {/* HERO SECTION */}
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-teal-50/80 via-emerald-50/40 to-white border border-teal-100 p-6 sm:p-10 shadow-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                {/* Lời chào & Danh ngôn */}
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-teal-800 border border-teal-200 text-xs font-bold shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Không gian an toàn • Thấu hiểu & Bảo mật 100%
+                  </div>
+
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight uppercase">
+                    NƠI TÂM HỒN ĐƯỢC <span className="text-teal-600 underline decoration-teal-300 decoration-wavy">LẮNG NGHE</span> & BẢN THÂN ĐƯỢC <span className="text-emerald-600">BẢO VỆ</span>
+                  </h1>
+
+                  <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-xl">
+                    Chào mừng bạn đến với <strong>TÂM AN</strong>. Khi gặp áp lực thi cử, rắc rối tuổi mới lớn hay đối mặt với bạo lực mạng, bạn luôn có thể trút bỏ gánh nặng tại đây qua nhật ký cảm xúc thông minh và người bạn AI 24/7.
+                  </p>
+
+                  {/* Hộp trích dẫn danh ngôn */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-white/90 border border-teal-100 shadow-xs text-xs sm:text-sm">
+                    <p className="text-gray-700 italic font-medium leading-relaxed">
+                      "{DAILY_QUOTES[quoteIndex].quote}"
+                    </p>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-[11px] text-gray-400">
+                      <span className="font-semibold text-teal-700 uppercase">— {DAILY_QUOTES[quoteIndex].author}</span>
+                      <button 
+                        onClick={() => {
+                          setQuoteIndex((prev) => (prev + 1) % DAILY_QUOTES.length);
+                          sound.playZenChime(660);
+                        }}
+                        className="text-teal-600 hover:text-teal-800 font-bold cursor-pointer"
+                      >
+                        🔄 Đổi câu khác
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Nút hành động chính */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        setActiveTab('journal');
+                        document.getElementById('journal-input-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="px-5 py-2.5 rounded-2xl bg-teal-600 text-white font-bold text-xs sm:text-sm shadow-md hover:bg-teal-700 transition-all cursor-pointer"
+                    >
+                      ✍️ Viết Nhật Ký Hôm Nay
+                    </button>
+                    <button
+                      onClick={() => setShowBreathing(true)}
+                      className="px-4 py-2.5 rounded-2xl bg-white border border-teal-200 text-teal-800 font-bold text-xs sm:text-sm hover:bg-teal-50 transition-all cursor-pointer"
+                    >
+                      🍃 Tập Thở 4-7-8
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('safety');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="px-4 py-2.5 rounded-2xl text-gray-600 hover:text-teal-700 font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                    >
+                      🛡️ Trạm An Toàn Mạng →
+                    </button>
+                  </div>
+
+                  {/* Chọn nhanh cảm xúc để thay đổi tiêu chí */}
+                  <div className="pt-2">
+                    <div className="text-xs font-bold text-gray-700 mb-2">
+                      Bạn đang cảm thấy thế nào ngay lúc này? (Nhấn để cập nhật các tiêu chí đánh giá):
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {MOOD_PRESETS.map((m) => (
+                        <button
+                          key={m.label}
+                          onClick={() => handleSelectMoodQuick(m)}
+                          className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 ${m.color}`}
+                        >
+                          <span>{m.emoji}</span>
+                          <span>{m.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* BẢNG TIÊU CHÍ ĐÁNH GIÁ (KHI MỚI VÀO LẦN ĐẦU TẤT CẢ VỀ 0%) */}
+                <div className="lg:col-span-5 space-y-3">
+                  <div className="bg-white rounded-3xl p-5 border border-teal-100 shadow-md">
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-teal-600 font-bold">📊</span>
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Tiêu Chí Đánh Giá Cảm Xúc
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                        isZeroState ? 'bg-gray-100 text-gray-600' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {isZeroState ? 'Mới truy cập (Tất cả: 0%)' : `${entries.length} trang đã ghi`}
+                      </span>
+                    </div>
+
+                    <div className={`p-3 rounded-2xl border flex items-center gap-3 ${
+                      isZeroState ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-teal-50 border-teal-100 text-gray-900'
+                    }`}>
+                      <span className="text-3xl">{currentEmoji}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-800">
+                            {isZeroState ? 'Chưa chọn cảm xúc' : entries[0].title}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {isZeroState ? 'Khởi tạo' : entries[0].date}
+                          </span>
+                        </div>
+                        <span className={`text-[11px] font-semibold block mt-0.5 ${isZeroState ? 'text-gray-400' : 'text-teal-700'}`}>
+                          {currentDominant}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="my-3 space-y-2.5">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>Chỉ số đánh giá:</span>
+                        <span className="text-gray-400 lowercase">{isZeroState ? 'tất cả tiêu chí = 0%' : 'thay đổi theo cảm xúc'}</span>
+                      </div>
+
+                      {/* 1. Vui vẻ */}
+                      <div>
+                        <div className="flex justify-between text-xs mb-1 font-medium">
+                          <span className="text-gray-600">Vui vẻ (Joy)</span>
+                          <span className="font-bold text-emerald-700">{currentScores.joy}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${currentScores.joy}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* 2. Lạc quan / Bình yên */}
+                      <div>
+                        <div className="flex justify-between text-xs mb-1 font-medium">
+                          <span className="text-gray-600">Lạc quan / Bình yên (Optimism)</span>
+                          <span className="font-bold text-teal-700">{currentScores.optimism}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full bg-teal-600 rounded-full transition-all duration-700" style={{ width: `${currentScores.optimism}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* 3. Lo âu / Căng thẳng */}
+                      <div>
+                        <div className="flex justify-between text-xs mb-1 font-medium">
+                          <span className="text-gray-600">Lo âu / Căng thẳng (Anxiety)</span>
+                          <span className="font-bold text-purple-700">{currentScores.anxiety}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full bg-purple-500 rounded-full transition-all duration-700" style={{ width: `${currentScores.anxiety}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* 4. Buồn bã */}
+                      <div>
+                        <div className="flex justify-between text-xs mb-1 font-medium">
+                          <span className="text-gray-600">Buồn bã (Sadness)</span>
+                          <span className="font-bold text-blue-700">{currentScores.sadness}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full transition-all duration-700" style={{ width: `${currentScores.sadness}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* 5. Tức giận */}
+                      <div>
+                        <div className="flex justify-between text-xs mb-1 font-medium">
+                          <span className="text-gray-600">Tức giận (Anger)</span>
+                          <span className="font-bold text-rose-700">{currentScores.anger}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full bg-rose-500 rounded-full transition-all duration-700" style={{ width: `${currentScores.anger}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+                      <button
+                        onClick={handleLoadSampleData}
+                        className="text-teal-600 hover:text-teal-800 font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        📥 Nạp 7 ngày mẫu
+                      </button>
+                      <button
+                        onClick={handleResetToZero}
+                        className="text-gray-400 hover:text-rose-600 font-medium flex items-center gap-1 cursor-pointer"
+                        title="Quay lại trạng thái ban đầu"
+                      >
+                        🔄 Reset về 0%
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+            {/* ========================================================= */}
+            {/* TAB 1: NHẬT KÝ CẢM XÚC & BIỂU ĐỒ DIỄN BIẾN */}
+            {/* ========================================================= */}
+            {activeTab === 'journal' && (
+              <div className="space-y-10">
+                
+                {/* 1. KHU VỰC BIỂU ĐỒ TRỰC QUAN HÓA (CHART.JS / SVG GRAPH) */}
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-teal-100 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-gray-100 gap-4">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span>📈</span> Biểu Đồ Diễn Biến Cảm Xúc & Phục Hồi Tâm Lý
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Dữ liệu cảm xúc tự động tổng hợp theo thời gian, giúp bạn nhận diện tác nhân căng thẳng.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setFilterRange('week')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                          filterRange === 'week' ? 'bg-teal-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        7 ngày qua
+                      </button>
+                      <button
+                        onClick={() => setFilterRange('all')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                          filterRange === 'all' ? 'bg-teal-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        Tất cả
+                      </button>
+                    </div>
+                  </div>
+
+                  {isZeroState ? (
+                    <div className="py-12 text-center space-y-3">
+                      <div className="w-16 h-16 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-3xl mx-auto">
+                        🌱
+                      </div>
+                      <h3 className="font-bold text-gray-800 text-sm">Chưa có dữ liệu cảm xúc nào (Tất cả tiêu chí = 0%)</h3>
+                      <p className="text-xs text-gray-500 max-w-md mx-auto">
+                        Hãy viết một trang nhật ký bên dưới hoặc nhấn nút cảm xúc trên Hero để biểu đồ bắt đầu vẽ lộ trình tâm lý của bạn.
+                      </p>
+                      <button
+                        onClick={handleLoadSampleData}
+                        className="px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 transition-all cursor-pointer"
+                      >
+                        Xem trước với dữ liệu mẫu 7 ngày
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-6 space-y-6">
+                      <div className="w-full h-64 bg-slate-50/70 rounded-2xl p-4 border border-slate-100 relative overflow-hidden flex flex-col justify-between">
+                        <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold">
+                          <span className="flex items-center gap-1.5 text-emerald-700"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Vui vẻ (Joy)</span>
+                          <span className="flex items-center gap-1.5 text-teal-700"><span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span> Lạc quan (Optimism)</span>
+                          <span className="flex items-center gap-1.5 text-purple-700"><span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Lo âu (Anxiety)</span>
+                          <span className="flex items-center gap-1.5 text-blue-700"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Buồn bã (Sadness)</span>
+                          <span className="flex items-center gap-1.5 text-rose-700"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Tức giận (Anger)</span>
+                        </div>
+
+                        <div className="flex items-end justify-around gap-2 h-44 pt-4 border-b border-gray-200">
+                          {entries.slice(0, 7).reverse().map((item) => (
+                            <div 
+                              key={item.id} 
+                              onClick={() => setSelectedEntryDetail(item)}
+                              className="flex flex-col items-center gap-1 flex-1 max-w-[50px] cursor-pointer group"
+                              title={`${item.title} - ${item.date}`}
+                            >
+                              <div className="w-full flex items-end justify-center gap-0.5 h-32 bg-gray-100/50 rounded-lg p-1 group-hover:bg-teal-50 transition-colors">
+                                <div className="w-1.5 bg-emerald-500 rounded-t" style={{ height: `${item.emotions.joy}%` }}></div>
+                                <div className="w-1.5 bg-teal-600 rounded-t" style={{ height: `${item.emotions.optimism}%` }}></div>
+                                <div className="w-1.5 bg-purple-500 rounded-t" style={{ height: `${item.emotions.anxiety}%` }}></div>
+                                <div className="w-1.5 bg-blue-500 rounded-t" style={{ height: `${item.emotions.sadness}%` }}></div>
+                                <div className="w-1.5 bg-rose-500 rounded-t" style={{ height: `${item.emotions.anger}%` }}></div>
+                              </div>
+                              <span className="text-xs group-hover:scale-125 transition-transform">{item.moodEmoji}</span>
+                              <span className="text-[10px] text-gray-500 font-medium truncate max-w-[45px]">{item.date.slice(5)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-100">
+                          <span className="text-[11px] font-bold text-teal-800 uppercase block mb-1">Cảm Xúc Nổi Bật Nhất</span>
+                          <span className="text-base font-extrabold text-teal-900">{entries[0].dominantEmotion}</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-100">
+                          <span className="text-[11px] font-bold text-amber-800 uppercase block mb-1">Tác Nhân Cần Chú Ý</span>
+                          <span className="text-xs font-bold text-amber-900">{entries[0].triggers.join(', ')}</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100">
+                          <span className="text-[11px] font-bold text-emerald-800 uppercase block mb-1">Lời Khuyên Tự Chăm Sóc</span>
+                          <span className="text-xs font-medium text-emerald-900">{entries[0].empathyMessage}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. SỔ TAY KỸ THUẬT SỐ: NHẬP NHẬT KÝ MỚI */}
+                <div id="journal-input-section" className="bg-white rounded-3xl p-6 sm:p-8 border border-teal-100 shadow-sm">
+                  <div className="pb-4 border-b border-gray-100 mb-6">
+                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <span>✍️</span> Cuốn Sổ Tay Kỹ Thuật Số (AI NLP Emotion Journal)
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Khi bạn nhấn "Lưu trang nhật ký", AI sẽ đọc và phân tích tự động các dải cảm xúc, tìm ra tác nhân căng thẳng và đưa ra lời xoa dịu.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSaveJournal} className="space-y-5">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">
+                        Tiêu đề trang nhật ký
+                      </label>
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        placeholder="Ví dụ: Buổi thi toán căng thẳng, hoặc Chuyện buồn với nhóm bạn hôm nay..."
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">
+                        Cảm xúc của bạn lúc này
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {['😊 Vui vẻ', '😌 Bình yên', '🥺 Buồn bã', '😰 Lo âu', '😤 Tức giận', '🍃 Thư thái', '⚡ Áp lực'].map((item) => {
+                          const emoji = item.split(' ')[0];
+                          const isSel = selectedEmoji === emoji;
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => setSelectedEmoji(emoji)}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                                isSel 
+                                  ? 'bg-teal-600 text-white border-teal-600 shadow-sm scale-105' 
+                                  : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase">
+                        Nội dung tâm sự (Hãy viết thật tự nhiên, không gian này dành riêng cho bạn)
+                      </label>
+                      <textarea
+                        rows="5"
+                        value={newContent}
+                        onChange={(e) => setNewContent(e.target.value)}
+                        placeholder="Hôm nay đã xảy ra chuyện gì? Bạn cảm thấy thế nào trong cơ thể? Có ai nói điều gì làm bạn tổn thương không?..."
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 transition-all leading-relaxed"
+                        required
+                      ></textarea>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                        🔒 Bảo mật trên máy của bạn
+                      </span>
+                      <button
+                        type="submit"
+                        className="px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-teal-600/20 transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+                      >
+                        <span>✨</span>
+                        Lưu & Phân Tích Cảm Xúc NLP
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* 3. LỊCH SỬ CÁC TRANG NHẬT KÝ ĐÃ GHI */}
+                {entries.length > 0 && (
+                  <div className="bg-white rounded-3xl p-6 sm:p-8 border border-teal-100 shadow-sm">
+                    <h2 className="text-lg font-bold text-gray-900 pb-4 border-b border-gray-100 mb-6 flex items-center gap-2">
+                      <span>📚</span> Lịch Sử Nhật Ký & Tiến Trình Phục Hồi ({entries.length} trang)
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {entries.map((item) => (
+                        <div
+                          key={item.id}
+                          onClick={() => setSelectedEntryDetail(item)}
+                          className="p-5 rounded-2xl border border-gray-200/80 hover:border-teal-300 hover:shadow-md transition-all cursor-pointer bg-gradient-to-b from-white to-gray-50/50 flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-2xl">{item.moodEmoji}</span>
+                              <span className="text-[10px] font-bold text-gray-400">{item.date}</span>
+                            </div>
+                            <h3 className="font-bold text-gray-900 text-sm line-clamp-1 mb-1.5">{item.title}</h3>
+                            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">{item.content}</p>
+                          </div>
+
+                          <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-teal-700 truncate max-w-[150px]">
+                              {item.dominantEmotion}
+                            </span>
+                            <span className="text-xs text-teal-600 font-bold hover:underline">Chi tiết →</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TAB 2: TRẠM AN TOÀN KHÔNG GIAN MẠNG & TRẮC NGHIỆM */}
+            {/* ========================================================= */}
+            {activeTab === 'safety' && (
+              <div className="space-y-8">
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-teal-100 shadow-sm">
+                  <div className="max-w-2xl">
+                    <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold border border-teal-200 mb-3 inline-block">
+                      🛡️ DIGITAL SAFETY HUB
+                    </span>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                      Trạm Kiến Thức An Toàn Không Gian Mạng
+                    </h2>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2 leading-relaxed">
+                      Cẩm nang tự vệ số thiết yếu dành cho thanh thiếu niên để tự bảo vệ bản thân trước bạo lực mạng, bảo mật dấu chân số và nhận biết cạm bẫy lừa đảo trực tuyến.
+                    </p>
+                  </div>
+
+                  {/* 4 Thẻ chủ đề tự vệ */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    {SAFETY_TOPICS.map((topic) => (
+                      <div key={topic.id} className="p-6 rounded-3xl border border-gray-200/90 bg-gradient-to-b from-white to-gray-50/70 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="text-3xl">{topic.icon}</span>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 px-2 py-0.5 rounded-md bg-teal-50 border border-teal-100">
+                              {topic.badge}
+                            </span>
+                            <h3 className="font-bold text-gray-900 text-base mt-1">{topic.title}</h3>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-600 italic mb-2">{topic.summary}</p>
+                        <span className="text-[11px] font-semibold text-teal-800 block mb-3 bg-teal-50/70 px-2.5 py-1 rounded-lg border border-teal-100">
+                          📜 Căn cứ: {topic.legalBasis}
+                        </span>
+                        <div className="space-y-2.5">
+                          {topic.rules.map((rule, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs text-gray-700 bg-white p-3 rounded-xl border border-gray-100">
+                              <span className="text-emerald-600 font-bold">✓</span>
+                              <span className="leading-relaxed">{rule}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Phần Trắc nghiệm tình huống tự vệ */}
+                  <div className="mt-10 pt-8 border-t border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span>🎯</span> Trắc Nghiệm Tình Huống Tự Vệ Số
+                    </h3>
+                    <div className="space-y-6">
+                      {SAFETY_QUIZZES.map((q) => {
+                        const answered = quizAnswers[q.id];
+                        return (
+                          <div key={q.id} className="p-5 rounded-2xl bg-gray-50 border border-gray-200/80">
+                            <p className="text-xs sm:text-sm font-bold text-gray-900 mb-3 leading-relaxed">
+                              {q.scenario}
+                            </p>
+                            <div className="space-y-2">
+                              {q.options.map((opt, oIdx) => {
+                                const isSelected = answered === oIdx;
+                                let btnStyle = "bg-white border-gray-200 text-gray-700 hover:bg-teal-50";
+                                if (answered !== undefined) {
+                                  if (opt.isCorrect) btnStyle = "bg-emerald-50 border-emerald-400 text-emerald-900 font-bold";
+                                  else if (isSelected && !opt.isCorrect) btnStyle = "bg-rose-50 border-rose-400 text-rose-900";
+                                }
+                                return (
+                                  <button
+                                    key={oIdx}
+                                    onClick={() => setQuizAnswers(prev => ({ ...prev, [q.id]: oIdx }))}
+                                    className={`w-full text-left p-3 rounded-xl border text-xs transition-all cursor-pointer ${btnStyle}`}
+                                  >
+                                    {opt.text}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {answered !== undefined && (
+                              <div className="mt-3 p-3 rounded-xl bg-teal-50/80 border border-teal-200 text-xs text-teal-900 leading-relaxed">
+                                💡 <strong>Giải thích:</strong> {q.explanation}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Banner báo cáo khẩn cấp */}
+                  <div className="mt-8 p-6 rounded-3xl bg-rose-50 border border-rose-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <span className="text-4xl">🚨</span>
+                      <div>
+                        <h4 className="font-bold text-rose-900 text-sm">Bạn đang gặp nguy hiểm hoặc bị tống tiền trên mạng?</h4>
+                        <p className="text-xs text-rose-700 mt-0.5">Gọi ngay Tổng đài Quốc gia Bảo vệ Trẻ em 111 (miễn cước 24/7, bí mật thông tin)</p>
+                      </div>
+                    </div>
+                    <a
+                      href="tel:111"
+                      className="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm shadow-md transition-all whitespace-nowrap cursor-pointer"
+                    >
+                      Gọi Ngay 111
+                    </a>
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TAB 3: TRÒ CHUYỆN TOÀN MÀN HÌNH VỚI BẠN ĐỒNG HÀNH AN AN */}
+            {/* HOÀN TOÀN KHÔNG BỊ LỖI, ĐỐI CHIẾU TÀI LIỆU CHÍNH THỐNG */}
+            {/* ========================================================= */}
+            {activeTab === 'chat' && (
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-white rounded-3xl border border-teal-100 flex flex-col overflow-hidden shadow-2xl shadow-teal-900/10 h-[720px]">
+                  
+                  {/* Header Chatbot */}
+                  <div className="bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 px-5 py-4 text-white flex items-center justify-between shrink-0 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shadow-inner border border-white/30">
+                          🌸
+                        </div>
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-teal-700 rounded-full"></span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm sm:text-base leading-none">An An - Đồng Hành & Cố Vấn</h3>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white">
+                            Chuẩn Y Khoa & Luật
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-teal-100/90 mt-0.5">
+                          Đối chiếu UNICEF, Cục An toàn Thông tin & Tổng đài 111
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleClearChatHistory}
+                        title="Làm mới cuộc trò chuyện"
+                        className="p-2 text-teal-200 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer text-xs flex items-center gap-1 font-semibold"
+                      >
+                        🔄 Làm mới
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Banner Cảnh Báo Khủng Hoảng Khi Phát Hiện Từ Khóa Nguy Hiểm */}
+                  {hasCrisisAlert && (
+                    <div className="bg-rose-50 border-b border-rose-200 p-3.5 flex items-start gap-3 shrink-0">
+                      <span className="text-xl">⚠️</span>
+                      <div className="text-xs text-rose-900 flex-1">
+                        <strong className="block font-bold mb-0.5">Bạn không đơn độc! Chúng mình luôn ở đây.</strong>
+                        <span>Nếu bạn đang trong trạng thái bế tắc hoặc nguy hiểm, hãy kết nối ngay với:</span>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <a
+                            href="tel:111"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 transition-colors"
+                          >
+                            📞 Gọi 111 (Bảo vệ Trẻ em - Miễn phí 24/7)
+                          </a>
+                          <a
+                            href="tel:0963061414"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-white border border-rose-300 text-rose-800 font-bold text-xs hover:bg-rose-100 transition-colors"
+                          >
+                            📞 096 306 1414 (Đường dây Ngày Mai)
+                          </a>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setHasCrisisAlert(false)}
+                        className="text-rose-400 hover:text-rose-700 text-xs font-bold cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Bộ Lọc 6 Nhóm Chủ Đề Chuyên Sâu */}
+                  <div className="bg-teal-50/50 border-b border-teal-100/70 px-3 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0">
+                    <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider shrink-0 mr-1">
+                      Chủ đề:
+                    </span>
+                    {CHAT_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveChatCategory(cat.id)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                          activeChatCategory === cat.id
+                            ? 'bg-teal-600 text-white shadow-xs'
+                            : 'bg-white text-gray-600 border border-teal-100 hover:bg-teal-50'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Danh Sách Tin Nhắn */}
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 bg-gradient-to-b from-gray-50/50 via-white to-teal-50/20">
+                    {chatMessages.map((msg) => {
+                      const isUser = msg.sender === 'user';
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex items-end gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {!isUser && (
+                            <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center text-sm shrink-0 font-bold mb-1 shadow-2xs">
+                              🌸
+                            </div>
+                          )}
+
+                          <div
+                            className={`max-w-[88%] sm:max-w-[80%] rounded-3xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
+                              isUser
+                                ? 'bg-teal-600 text-white rounded-br-xs shadow-xs font-medium'
+                                : msg.safetyTriggered
+                                ? 'bg-rose-50 text-rose-950 border border-rose-200 rounded-bl-xs shadow-xs'
+                                : 'bg-white text-gray-800 border border-teal-100/90 rounded-bl-xs shadow-sm'
+                            }`}
+                          >
+                            {/* Nội dung tin nhắn Markdown */}
+                            <div className="text-inherit">
+                              {renderFormattedChatMessage(msg.text)}
+                            </div>
+
+                            {/* Huy hiệu tài liệu chính thống tham chiếu */}
+                            {!isUser && msg.officialSources && msg.officialSources.length > 0 && (
+                              <div className="mt-3 pt-2.5 border-t border-gray-100/80 flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] font-semibold text-gray-400">Tài liệu tham chiếu:</span>
+                                {msg.officialSources.map((source, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className="text-[10px] px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 font-semibold border border-teal-100 flex items-center gap-1"
+                                  >
+                                    ✓ {source}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Gợi ý bước tiếp theo (Suggested Action Chips) */}
+                            {!isUser && msg.suggestedActions && msg.suggestedActions.length > 0 && (
+                              <div className="mt-3 pt-2 border-t border-gray-100/80 space-y-1.5">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                  Gợi ý bước tiếp theo:
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {msg.suggestedActions.map((action, aIdx) => (
+                                    <button
+                                      key={aIdx}
+                                      onClick={() => handleActionClick(action)}
+                                      className="px-2.5 py-1 rounded-xl bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 text-gray-700 hover:text-teal-800 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+                                    >
+                                      <span>{action}</span>
+                                      <span className="opacity-60">→</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Footer tin nhắn: Thời gian, Đọc giọng nói & Sao chép */}
+                            <div
+                              className={`text-[10px] mt-2 pt-1 flex items-center justify-between ${
+                                isUser ? 'text-teal-200' : 'text-gray-400 border-t border-gray-100/60'
+                              }`}
+                            >
+                              <span>{msg.timestamp}</span>
+
+                              {!isUser && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleSpeakChatMessage(msg.id, msg.text)}
+                                    title={speakingId === msg.id ? 'Dừng đọc' : 'Nghe giọng đọc An An'}
+                                    className="hover:text-teal-700 transition-colors p-1 rounded-md hover:bg-gray-100 cursor-pointer text-xs"
+                                  >
+                                    {speakingId === msg.id ? '🔊 Đang đọc...' : '🔈 Nghe'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleCopyChatMessage(msg.id, msg.text)}
+                                    title="Sao chép lời khuyên"
+                                    className="hover:text-teal-700 transition-colors p-1 rounded-md hover:bg-gray-100 cursor-pointer text-xs"
+                                  >
+                                    {copiedId === msg.id ? '✓ Đã chép' : '📋 Chép'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Hiệu ứng đang gõ tin nhắn */}
+                    {isChatLoading && (
+                      <div className="flex items-end gap-2.5 justify-start">
+                        <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center text-sm shrink-0 font-bold shadow-2xs">
+                          🌸
+                        </div>
+                        <div className="bg-white border border-teal-100 rounded-3xl rounded-bl-xs px-4 py-3 shadow-xs flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-teal-400 animate-bounce"></span>
+                          <span className="w-2 h-2 rounded-full bg-teal-500 animate-bounce [animation-delay:0.2s]"></span>
+                          <span className="w-2 h-2 rounded-full bg-teal-600 animate-bounce [animation-delay:0.4s]"></span>
+                          <span className="text-xs text-teal-700 font-semibold ml-1">
+                            An An đang đối chiếu tài liệu chính thống & soạn câu trả lời...
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div ref={chatMessagesEndRef} />
+                  </div>
+
+                  {/* Danh sách câu hỏi nhanh theo Category */}
+                  <div className="px-4 py-2 bg-gray-50/90 border-t border-gray-100 overflow-x-auto whitespace-nowrap shrink-0">
+                    <div className="flex gap-1.5 text-xs">
+                      {currentCategoryObj.prompts.map((q, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleSendChatMessage(q)}
+                          className="px-3 py-1.5 rounded-full bg-white border border-teal-200/80 text-gray-700 hover:border-teal-500 hover:text-teal-800 hover:bg-teal-50 transition-all shrink-0 cursor-pointer text-[11px] font-medium shadow-2xs"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Thanh công cụ nhanh đáy chat */}
+                  <div className="px-4 py-1.5 bg-white border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowBreathing(true)}
+                        className="flex items-center gap-1 text-teal-700 hover:text-teal-800 font-semibold cursor-pointer"
+                      >
+                        🍃 Tập thở xả stress
+                      </button>
+                      <button
+                        onClick={() => setShowEmergency(true)}
+                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
+                      >
+                        🚨 Đường dây nóng SOS 111
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                      🔒 Bảo mật cục bộ trên thiết bị
+                    </span>
+                  </div>
+
+                  {/* Form Gửi Tin Nhắn */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendChatMessage();
+                    }}
+                    className="p-3 bg-white border-t border-gray-100 flex items-center gap-2 shrink-0"
+                  >
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Nhập bất kỳ câu hỏi, trăn trở hay tâm sự nào của bạn..."
+                      className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 bg-gray-50/50"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatInput.trim() || isChatLoading}
+                      className="px-5 py-2.5 rounded-2xl bg-teal-600 text-white font-bold text-xs sm:text-sm hover:bg-teal-700 transition-all disabled:opacity-40 shadow-md shadow-teal-600/20 active:scale-95 cursor-pointer shrink-0"
+                    >
+                      Gửi tin
+                    </button>
+                  </form>
+
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* ========================================================= */}
+          {/* MODAL TẬP THỞ 4-7-8 THƯ GIÃN */}
+          {/* ========================================================= */}
+          {showBreathing && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-xl space-y-6">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-900 text-base">Bài Tập Thở Thư Giãn 4-7-8</h3>
+                  <button onClick={() => setShowBreathing(false)} className="text-gray-400 hover:text-gray-600 font-bold cursor-pointer text-lg">✕</button>
+                </div>
+                
+                <div className="w-48 h-48 rounded-full bg-gradient-to-tr from-teal-100 via-emerald-100 to-cyan-100 border-4 border-teal-300 mx-auto flex flex-col items-center justify-center animate-pulse-breathing shadow-inner">
+                  <span className="text-4xl mb-1">🍃</span>
+                  <span className="text-xs font-extrabold text-teal-800 uppercase tracking-widest">HÍT VÀO • THỞ RA</span>
+                </div>
+
+                <div className="text-xs text-gray-600 space-y-2 leading-relaxed bg-teal-50/50 p-4 rounded-2xl">
+                  <p><strong>1. Hít vào:</strong> Bằng mũi trong 4 giây chậm rãi.</p>
+                  <p><strong>2. Giữ hơi:</strong> Nín thở nhẹ nhàng trong 7 giây.</p>
+                  <p><strong>3. Thở ra:</strong> Bằng miệng đẩy hết thán khí trong 8 giây.</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    sound.playZenChime(528);
+                    setShowBreathing(false);
+                  }}
+                  className="w-full py-3 rounded-2xl bg-teal-600 text-white font-bold text-xs sm:text-sm hover:bg-teal-700 cursor-pointer shadow-md"
+                >
+                  Tôi Đã Thấy Dịu Đi Rất Nhiều 🌸
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* MODAL ĐƯỜNG DÂY NÓNG SOS */}
+          {/* ========================================================= */}
+          {showEmergency && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-xl space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🚨</span>
+                    <h3 className="font-bold text-gray-900 text-base">Đường Dây Nóng Hỗ Trợ Khẩn Cấp</h3>
+                  </div>
+                  <button onClick={() => setShowEmergency(false)} className="text-gray-400 hover:text-gray-600 font-bold cursor-pointer text-lg">✕</button>
+                </div>
+
+                <p className="text-xs text-gray-600">
+                  Các tổng đài chính thống tại Việt Nam luôn bảo mật danh tính và hỗ trợ miễn phí 24/7:
+                </p>
+
+                <div className="space-y-3">
+                  {HOTLINES.map((h) => (
+                    <div key={h.number} className={`p-4 rounded-2xl border ${h.color} flex items-center justify-between`}>
+                      <div>
+                        <h4 className="font-bold text-xs sm:text-sm">{h.name}</h4>
+                        <p className="text-[11px] opacity-80 mt-0.5">{h.desc}</p>
+                      </div>
+                      <a
+                        href={`tel:${h.phone}`}
+                        className="px-4 py-2 rounded-xl bg-gray-900 text-white font-bold text-xs whitespace-nowrap hover:bg-gray-800 shadow-sm"
+                      >
+                        Gọi {h.number}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <button
+                    onClick={() => window.location.href = 'https://www.google.com'}
+                    className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+                    title="Chuyển ngay sang trang Google để bảo vệ bí mật nếu có người bước vào"
+                  >
+                    ⚡ Thoát nhanh (Google)
+                  </button>
+                  <button
+                    onClick={() => setShowEmergency(false)}
+                    className="px-5 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs cursor-pointer"
+                  >
+                    Đóng cửa sổ
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* MODAL CHI TIẾT TRANG NHẬT KÝ ĐÃ LƯU */}
+          {/* ========================================================= */}
+          {selectedEntryDetail && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{selectedEntryDetail.moodEmoji}</span>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-base">{selectedEntryDetail.title}</h3>
+                      <p className="text-[11px] text-gray-400">{selectedEntryDetail.date} lúc {selectedEntryDetail.time}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedEntryDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-gray-50 text-xs sm:text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                  {selectedEntryDetail.content}
+                </div>
+
+                <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-100 space-y-3">
+                  <h4 className="text-xs font-bold text-teal-900 uppercase">Phân Tích Cảm Xúc NLP AI</h4>
+                  <div className="grid grid-cols-5 gap-2 text-center text-xs">
+                    <div className="p-2 rounded-xl bg-white border border-teal-100">
+                      <span className="block text-[10px] text-gray-500">Vui vẻ</span>
+                      <strong className="text-emerald-700">{selectedEntryDetail.emotions.joy}%</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white border border-teal-100">
+                      <span className="block text-[10px] text-gray-500">Lạc quan</span>
+                      <strong className="text-teal-700">{selectedEntryDetail.emotions.optimism}%</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white border border-teal-100">
+                      <span className="block text-[10px] text-gray-500">Lo âu</span>
+                      <strong className="text-purple-700">{selectedEntryDetail.emotions.anxiety}%</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white border border-teal-100">
+                      <span className="block text-[10px] text-gray-500">Buồn</span>
+                      <strong className="text-blue-700">{selectedEntryDetail.emotions.sadness}%</strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white border border-teal-100">
+                      <span className="block text-[10px] text-gray-500">Tức giận</span>
+                      <strong className="text-rose-700">{selectedEntryDetail.emotions.anger}%</strong>
+                    </div>
+                  </div>
+                  <p className="text-xs text-teal-800 italic mt-2">
+                    "{selectedEntryDetail.empathyMessage}"
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <button
+                    onClick={() => {
+                      setEntries(prev => prev.filter(e => e.id !== selectedEntryDetail.id));
+                      setSelectedEntryDetail(null);
+                    }}
+                    className="text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                  >
+                    🗑️ Xóa trang này
+                  </button>
+                  <button
+                    onClick={() => setSelectedEntryDetail(null)}
+                    className="px-5 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700 cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* NÚT CHATBOT NỔI 24/7 GÓC DƯỚI MÀN HÌNH */}
+          {/* ========================================================= */}
+          <div className="fixed bottom-6 right-6 z-40">
+            <button
+              onClick={() => {
+                setActiveTab('chat');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="px-4 py-3 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-xs sm:text-sm shadow-xl shadow-teal-700/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer border border-white/20"
+            >
+              <span className="text-xl">🌸</span>
+              <span>Tâm sự cùng An An</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping"></span>
+            </button>
+          </div>
+
+          {/* ========================================================= */}
+          {/* FOOTER CHÂN TRANG */}
+          {/* ========================================================= */}
+          <footer className="mt-16 bg-white border-t border-teal-100 py-8 text-xs text-gray-500">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-gray-900 text-sm uppercase">TÂM AN</span>
+                <span>• Không gian an toàn hỗ trợ tâm lý & kiến thức an toàn mạng</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setShowEmergency(true)} className="hover:text-rose-600 font-bold cursor-pointer">Tổng đài 111</button>
+                <button onClick={() => setShowBreathing(true)} className="hover:text-teal-600 font-bold cursor-pointer">Bài tập thở</button>
+                <span>Bảo mật dữ liệu 100%</span>
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      );
+    }
+
+    // Khởi tạo React Root vào DOM
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

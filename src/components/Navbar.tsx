@@ -81,8 +81,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xl tracking-tight text-gray-900 group-hover:text-teal-700 group-hover:brightness-105 transition-all duration-200">
-                Tâm An
+              <span className="font-extrabold text-xl tracking-tight text-gray-900 uppercase group-hover:text-teal-700 group-hover:brightness-105 transition-all duration-200">
+                TÂM AN
               </span>
               <span className="px-2 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[10px] font-bold uppercase tracking-wider group-hover:brightness-105 group-hover:border-teal-300 group-hover:opacity-95 transition-all duration-200">
                 SafeSpace

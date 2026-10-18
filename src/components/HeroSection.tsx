@@ -161,7 +161,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   "{currentQuote.quote}"
                 </p>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-[11px] text-gray-400">
-                  <span className="font-semibold text-teal-700">— {currentQuote.author}</span>
+                  <span className="font-semibold text-teal-700 uppercase">— {currentQuote.author}</span>
                   <button
                     onClick={nextQuote}
                     className="flex items-center gap-1 text-teal-600 hover:text-teal-800 hover:brightness-110 font-bold cursor-pointer transition-all duration-150"
